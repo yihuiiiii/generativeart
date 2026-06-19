@@ -70,7 +70,16 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 .leg{display:flex;flex-direction:column;gap:7px}
 .li{display:flex;align-items:center;gap:7px;font-size:11px;color:#6B7280}
 .ldot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
-#map{flex:1}
+#map{flex:1;background:#07111f}
+#map .leaflet-tile-pane{filter:saturate(.85) contrast(1.08) brightness(.92)}
+#map .leaflet-control-zoom a{background:#101b2e;border-color:#24344f;color:#E5EEF9}
+#map .leaflet-control-zoom a:hover{background:#172740;color:#fff}
+#map .leaflet-control-attribution{background:rgba(7,17,31,.82);color:#9FB2CA}
+#map .leaflet-control-attribution a{color:#7DD3FC}
+#map .leaflet-popup-content-wrapper,
+#map .leaflet-popup-tip{background:#111827;color:#DCE7F3;box-shadow:0 12px 28px rgba(0,0,0,.45)}
+#map .leaflet-popup-content div{color:#DCE7F3!important}
+#map .leaflet-tooltip{background:#101b2e;border:1px solid #2A3B58;color:#E5EEF9;box-shadow:0 8px 20px rgba(0,0,0,.35)}
 .cost-row{font-size:10px;color:#9CA3AF;margin-top:5px;line-height:1.6}
 </style>
 </head>
@@ -564,9 +573,9 @@ function initMap() {
   
   try {
     map = L.map('map', {center: [23.0000, 120.2120], zoom: 15});
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
-      maxZoom: 19
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+      maxZoom: 20
     }).addTo(map);
     
     // 初始化应用
@@ -617,7 +626,7 @@ function initializeApp() {
     const nd=N[origNode];
     document.getElementById('origLabel').textContent=nd.name;
     if(mrkOrig)mrkOrig.remove();
-    mrkOrig=L.circleMarker([nd.lat,nd.lng],{radius:8,fillColor:'#1A1A2E',color:'#fff',weight:2,fillOpacity:1})
+  mrkOrig=L.circleMarker([nd.lat,nd.lng],{radius:8,fillColor:'#38BDF8',color:'#E0F2FE',weight:2,fillOpacity:1})
       .addTo(map).bindTooltip('出發地：'+nd.name,{direction:'top'});
     checkReady();
   });
@@ -665,8 +674,8 @@ function getUserLocation(){
         // 添加用戶位置標記（藍色圓點）
         userLocationMarker=L.circleMarker([lat,lng],{
           radius:8,
-          fillColor:'#3B82F6',
-          color:'#fff',
+          fillColor:'#38BDF8',
+          color:'#E0F2FE',
           weight:2,
           fillOpacity:1
         }).addTo(map);
@@ -674,8 +683,8 @@ function getUserLocation(){
         // 添加精度圓圈
         L.circle([lat,lng],{
           radius:accuracy,
-          color:'#3B82F6',
-          fillColor:'#93C5FD',
+          color:'#38BDF8',
+          fillColor:'#7DD3FC',
           fillOpacity:0.2,
           weight:1,
           dashArray:'5,5'
@@ -921,7 +930,7 @@ function loadDemo(){
   document.getElementById('origLabel').textContent=N[origNode].name;
   if(mrkOrig)mrkOrig.remove();
   const nd=N[origNode];
-  mrkOrig=L.circleMarker([nd.lat,nd.lng],{radius:8,fillColor:'#1A1A2E',color:'#fff',weight:2,fillOpacity:1})
+    mrkOrig=L.circleMarker([nd.lat,nd.lng],{radius:8,fillColor:'#38BDF8',color:'#E0F2FE',weight:2,fillOpacity:1})
     .addTo(map).bindTooltip('出發地：'+nd.name,{direction:'top'});
   document.getElementById('destSel').value=d.dest;
   destShelter=SHELTERS.find(s=>s.id===d.dest);
@@ -966,8 +975,8 @@ function run(){
   // Draw routes
   const cStd=rStd.path.map(id=>[N[id].lat,N[id].lng]);
   const cSafe=rSafe.path.map(id=>[N[id].lat,N[id].lng]);
-  lyrStd=L.polyline(cStd,{color:'#FB923C',weight:3,dashArray:'12 8',opacity:.85}).addTo(map);
-  lyrSafe=L.polyline(cSafe,{color:'#DC2626',weight:5,dashArray:'',opacity:.92}).addTo(map);
+  lyrStd=L.polyline(cStd,{color:'#FFE45E',weight:4,dashArray:'12 8',opacity:1}).addTo(map);
+  lyrSafe=L.polyline(cSafe,{color:'#FF6B7A',weight:6,dashArray:'',opacity:1}).addTo(map);
   map.fitBounds(L.latLngBounds([...cStd,...cSafe]).pad(.18));
 
   const noteClass={warn:'nwarn',ok:'nok',flood:'nflood',gray:'ngray'};
@@ -1217,9 +1226,9 @@ function addGeoJSONToMap(geojson, label){
   kmzLayer=L.geoJSON(geojson,{
     style:function(f){
       return {
-        color:'#2b8cbe',
-        weight:3,
-        opacity:0.9,
+        color:'#67E8F9',
+        weight:4,
+        opacity:1,
         fillOpacity:0.5
       };
     },
