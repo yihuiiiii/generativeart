@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:openprocessing.org)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(Start-Process python *)",
+      "Read(//mnt/c/**)",
+      "Bash(python3 -m http.server 3001)",
+      "Bash(curl -s http://localhost:3001/tainan-disaster-route.html)",
+      "PowerShell(cd C:\\\\generativeart; Start-Process python -ArgumentList \"-m http.server 3001\" -NoNewWindow; Start-Sleep 2; \\(Invoke-WebRequest \"http://localhost:3001/tainan-disaster-route.html\" -UseBasicParsing\\).Content.Substring\\(0,100\\))",
+      "PowerShell(netstat -ano)",
+      "WebFetch(domain:unpkg.com)"
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "tainan-disaster-route",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["http-server", ".", "--port", "${PORT}", "--cors", "-c-1"],
+      "port": 8080,
+      "autoPort": true
+    }
+  ]
+}

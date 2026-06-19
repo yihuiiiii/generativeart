@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>台南市東區 防災路徑分析系統</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- KMZ/KML parsing libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+<script src="https://unpkg.com/togeojson/togeojson.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans TC','Microsoft JhengHei',system-ui,sans-serif;background:#F0F2F5;color:#1A1A2E;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+.hdr{background:#fff;border-bottom:1px solid #E5E7EB;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.hdr-t{font-size:16px;font-weight:700;letter-spacing:.2px}
+.hdr-s{font-size:11px;color:#9CA3AF;margin-top:2px}
+.hdr-b{font-size:11px;color:#6B7280;background:#F9FAFB;border:1px solid #E5E7EB;padding:4px 12px;border-radius:4px;white-space:nowrap}
+.layout{display:flex;flex:1;overflow:hidden}
+.sidebar{width:360px;background:#fff;border-right:1px solid #E5E7EB;display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.sidebar::-webkit-scrollbar{width:4px}
+.sidebar::-webkit-scrollbar-thumb{background:#E5E7EB;border-radius:2px}
+.sec{padding:14px 18px;border-bottom:1px solid #F3F4F6}
+.lbl{font-size:10px;font-weight:700;color:#9CA3AF;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+.tabs{display:flex;gap:5px}
+.tab{flex:1;padding:8px 4px;border:1.5px solid #E5E7EB;background:#F9FAFB;border-radius:7px;font-size:12px;font-weight:500;color:#6B7280;cursor:pointer;text-align:center;transition:all .15s;user-select:none}
+.tab:hover{background:#F3F4F6}
+.tab.eq{background:#FFF7ED;border-color:#FB923C;color:#C2410C;font-weight:700}
+.tab.fl{background:#EFF6FF;border-color:#60A5FA;color:#1D4ED8;font-weight:700}
+.tab.wa{background:#F8FAFC;border-color:#475569;color:#1E293B;font-weight:700}
+.mdesc{font-size:11px;color:#6B7280;margin-top:10px;padding:9px 11px;background:#F9FAFB;border-radius:5px;line-height:1.6;border-left:2px solid #E5E7EB}
+.loc-row{display:flex;align-items:center;gap:10px;margin-bottom:7px}
+.dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.d-o{background:#1A1A2E}
+.d-d{background:#DC2626}
+.loc-box{flex:1;padding:8px 11px;border:1px solid #E5E7EB;border-radius:6px;font-size:12px;color:#374151;background:#F9FAFB;cursor:pointer;transition:border-color .15s;min-width:0}
+.loc-box:focus{outline:none;border-color:#9CA3AF;background:#fff}
+.loc-box.picking{border-color:#1A1A2E;background:#fff;cursor:crosshair}
+.hint{font-size:10px;color:#9CA3AF;margin-top:2px;margin-left:20px}
+.sl-row{margin-bottom:10px}
+.sl-hd{display:flex;justify-content:space-between;margin-bottom:4px}
+.sl-n{font-size:12px;color:#374151;font-weight:500}
+.sl-v{font-size:12px;color:#374151;font-weight:700}
+input[type=range]{width:100%;height:3px;-webkit-appearance:none;background:#E5E7EB;border-radius:2px;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:#374151;cursor:pointer;border:2px solid #fff;box-shadow:0 0 0 1.5px #9CA3AF}
+.run-btn{width:100%;padding:11px;background:#1A1A2E;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;letter-spacing:.5px;transition:background .15s}
+.run-btn:hover:not(:disabled){background:#2D2D44}
+.run-btn:disabled{background:#D1D5DB;cursor:not-allowed;color:#9CA3AF}
+.demo-btn{width:100%;padding:7px;background:#F9FAFB;color:#374151;border:1px solid #E5E7EB;border-radius:6px;font-size:11px;cursor:pointer;margin-top:7px;transition:background .15s}
+.demo-btn:hover{background:#F3F4F6}
+.rcard{border:1px solid #E5E7EB;border-radius:8px;padding:12px;margin-bottom:8px}
+.rcd-hd{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.rline-std{width:28px;height:2px;background:repeating-linear-gradient(90deg,#9CA3AF 0,#9CA3AF 5px,transparent 5px,transparent 8px)}
+.rline-safe{width:28px;height:3px;border-radius:2px}
+.rtitle{font-size:13px;font-weight:600;color:#374151}
+.rtag{margin-left:auto;font-size:10px;padding:2px 7px;border-radius:3px;font-weight:600;white-space:nowrap}
+.tag-ref{background:#F3F4F6;color:#6B7280}
+.tag-safe{background:#FEF3C7;color:#92400E}
+.tag-flood{background:#DBEAFE;color:#1E40AF}
+.tag-war{background:#F1F5F9;color:#1E293B}
+.rstats{display:flex;gap:16px;margin-bottom:8px;flex-wrap:wrap}
+.rs{font-size:11px;color:#6B7280}
+.rs b{font-weight:700;color:#1A1A2E}
+.rnote{font-size:11px;padding:7px 9px;border-radius:5px;line-height:1.5}
+.nwarn{background:#FFFBEB;border:1px solid #FDE68A;color:#92400E}
+.nok{background:#F0FDF4;border:1px solid #BBF7D0;color:#065F46}
+.ngray{background:#F8FAFC;border:1px solid #E2E8F0;color:#334155}
+.nflood{background:#EFF6FF;border:1px solid #BFDBFE;color:#1E40AF}
+.nsame{font-size:11px;color:#6B7280;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:5px;padding:7px 9px;margin-bottom:8px;line-height:1.5}
+.leg{display:flex;flex-direction:column;gap:7px}
+.li{display:flex;align-items:center;gap:7px;font-size:11px;color:#6B7280}
+.ldot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+#map{flex:1}
+.cost-row{font-size:10px;color:#9CA3AF;margin-top:5px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div>
+    <div class="hdr-t">台南市東區 防災路徑分析系統</div>
+    <div class="hdr-s">最低綜合風險值逃生路線演算 &nbsp;&middot;&nbsp; Tainan East District Disaster Evacuation Optimizer &nbsp;&middot;&nbsp; 115年資料</div>
+  </div>
+  <div class="hdr-b">災難中後期疏散階段適用&nbsp;&nbsp;|&nbsp;&nbsp;模擬演算 v2.0</div>
+</div>
+<div class="layout">
+<div class="sidebar">
+
+  <div class="sec">
+    <div class="lbl">功能選項</div>
+    <button class="demo-btn" style="width:100%;margin:0;margin-bottom:8px" onclick="toggleGPS()" id="gpsBtn">🔴 啟動 GPS 定位</button>
+    <button class="demo-btn" style="width:100%;margin:0" onclick="openImportPanel()">📍 匯入收容所資訊</button>
+  </div>
+
+  <div class="sec">
+    <div class="lbl">災難類別</div>
+    <div class="tabs">
+      <div class="tab eq" data-mode="earthquake" onclick="setMode('earthquake')">地震</div>
+      <div class="tab" data-mode="flood" onclick="setMode('flood')">水災</div>
+      <div class="tab" data-mode="war" onclick="setMode('war')">戰爭</div>
+    </div>
+    <div class="mdesc" id="mdesc"></div>
+  </div>
+
+  <div class="sec">
+    <div class="lbl">路徑設定</div>
+    <div class="loc-row">
+      <div class="dot d-o"></div>
+      <div class="loc-box" id="origLabel" onclick="startPick()">點擊地圖設定出發位置</div>
+    </div>
+    <div class="hint">於地圖任意處點擊，系統自動吸附至最近路口</div>
+    <div style="height:8px"></div>
+    <div class="loc-row">
+      <div class="dot d-d"></div>
+      <select class="loc-box" id="destSel" onchange="onDest()">
+        <option value="">-- 選擇目標避難設施 --</option>
+      </select>
+    </div>
+    <button class="demo-btn" id="demoBtn" onclick="loadDemo()">載入本模式示範路線</button>
+  </div>
+
+  <div class="sec">
+    <div class="lbl">風險權重調整</div>
+    <div id="sliders"></div>
+  </div>
+
+  <div class="sec">
+    <button class="run-btn" id="runBtn" onclick="run()" disabled>執行路徑分析</button>
+  </div>
+
+  <div class="sec" id="resSection" style="display:none">
+    <div class="lbl">路線比較</div>
+    <div id="resCards"></div>
+  </div>
+
+  <div class="sec">
+    <div class="lbl">圖層說明</div>
+    <div class="leg">
+      <div class="li"><svg width="16" height="16" viewBox="0 0 16 16" style="flex-shrink:0"><polygon points="8,2 2,7 2,14 14,14 14,7" fill="#DC2626"/><circle cx="8" cy="3.5" r="1" fill="#FFF"/><path d="M8,4.5 L6.5,6.5 L7,7 L9,6.5 Z" fill="#FFF"/></svg>避難收容所（16所，總容量 32,870 人）</div>
+      <div class="li"><svg width="16" height="16" viewBox="0 0 16 16" style="flex-shrink:0"><circle cx="8" cy="8" r="7" fill="#2563EB"/><rect x="6" y="4" width="2" height="8" fill="#FFF"/><rect x="4" y="7" width="8" height="2" fill="#FFF"/></svg>救濟站學校（13所）</div>
+      <div class="li"><svg width="16" height="16" viewBox="0 0 16 16" style="flex-shrink:0"><ellipse cx="8" cy="8" rx="6" ry="5" fill="#475569"/><circle cx="6" cy="8" r="1.5" fill="#FFF" opacity="0.6"/><circle cx="10" cy="8" r="1.5" fill="#FFF" opacity="0.6"/></svg>戰時防空疏散避難設施（7所）</div>
+      <div class="li">
+        <div style="width:22px;height:2px;background:repeating-linear-gradient(90deg,#FB923C 0,#FB923C 6px,transparent 6px,transparent 10px);flex-shrink:0"></div>
+        一般最短路線（橘色長虛線）
+      </div>
+      <div class="li">
+        <div style="width:22px;height:3px;border-radius:2px;background:#DC2626;flex-shrink:0"></div>
+        災難安全路線（紅色實線，推薦）
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 匯入表單模態 -->
+<div id="importModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:9999;justify-content:center;align-items:center">
+  <div style="background:#fff;border-radius:12px;padding:24px;max-width:400px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.3)">
+    <div style="font-size:16px;font-weight:600;margin-bottom:16px;color:#1A1A2E">新增避難收容所</div>
+    <div style="font-size:12px;color:#6B7280;margin-bottom:12px">請輸入收容所資訊</div>
+    
+    <div style="margin-bottom:12px">
+      <label style="font-size:11px;color:#9CA3AF;font-weight:600;display:block;margin-bottom:4px">* 設施名稱</label>
+      <input type="text" id="impName" placeholder="例：新增收容所" style="width:100%;padding:8px;border:1px solid #E5E7EB;border-radius:6px;font-size:12px;box-sizing:border-box">
+    </div>
+    
+    <div style="margin-bottom:12px">
+      <label style="font-size:11px;color:#9CA3AF;font-weight:600;display:block;margin-bottom:4px">地址</label>
+      <input type="text" id="impAddr" placeholder="台南市東區..." style="width:100%;padding:8px;border:1px solid #E5E7EB;border-radius:6px;font-size:12px;box-sizing:border-box">
+    </div>
+    
+    <div style="display:flex;gap:12px;margin-bottom:12px">
+      <div style="flex:1">
+        <label style="font-size:11px;color:#9CA3AF;font-weight:600;display:block;margin-bottom:4px">* 緯度</label>
+        <input type="number" id="impLat" placeholder="23.0050" step="0.0001" style="width:100%;padding:8px;border:1px solid #E5E7EB;border-radius:6px;font-size:12px;box-sizing:border-box">
+      </div>
+      <div style="flex:1">
+        <label style="font-size:11px;color:#9CA3AF;font-weight:600;display:block;margin-bottom:4px">* 經度</label>
+        <input type="number" id="impLng" placeholder="120.2098" step="0.0001" style="width:100%;padding:8px;border:1px solid #E5E7EB;border-radius:6px;font-size:12px;box-sizing:border-box">
+      </div>
+    </div>
+    
+    <div style="display:flex;gap:12px;margin-bottom:12px">
+      <div style="flex:1">
+        <label style="font-size:11px;color:#9CA3AF;font-weight:600;display:block;margin-bottom:4px">室內人數</label>
+        <input type="number" id="impIndoor" placeholder="0" style="width:100%;padding:8px;border:1px solid #E5E7EB;border-radius:6px;font-size:12px;box-sizing:border-box">
+      </div>
+      <div style="flex:1">
+        <label style="font-size:11px;color:#9CA3AF;font-weight:600;display:block;margin-bottom:4px">室外人數</label>
+        <input type="number" id="impOutdoor" placeholder="0" style="width:100%;padding:8px;border:1px solid #E5E7EB;border-radius:6px;font-size:12px;box-sizing:border-box">
+      </div>
+    </div>
+    
+    <div style="margin-bottom:12px">
+      <label style="font-size:11px;color:#9CA3AF;font-weight:600;display:block;margin-bottom:4px">* 設施類型</label>
+      <select id="impType" style="width:100%;padding:8px;border:1px solid #E5E7EB;border-radius:6px;font-size:12px;box-sizing:border-box">
+        <option value="shelter">避難收容所</option>
+        <option value="relief">救濟站學校</option>
+        <option value="civil">防空疏散避難設施</option>
+      </select>
+    </div>
+    
+    <div style="margin-bottom:16px">
+      <label style="font-size:11px;color:#9CA3AF;font-weight:600;display:block;margin-bottom:4px">建築物資訊</label>
+      <input type="text" id="impNote" placeholder="例：RC結構" style="width:100%;padding:8px;border:1px solid #E5E7EB;border-radius:6px;font-size:12px;box-sizing:border-box">
+    </div>
+    
+    <div style="display:flex;gap:8px">
+      <button onclick="submitImport()" style="flex:1;padding:10px;background:#1A1A2E;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px">確認新增</button>
+      <button onclick="closeImportModal()" style="flex:1;padding:10px;background:#F3F4F6;color:#6B7280;border:1px solid #E5E7EB;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px">取消</button>
+    </div>
+      <div style="margin-top:12px;border-top:1px solid #F3F4F6;padding-top:12px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#1A1A2E">匯入 KMZ 檔案</div>
+        <input type="file" id="kmzInput" accept=".kmz,.kmzfile,.kml,application/vnd.google-earth.kmz,application/vnd.google-earth.kml+xml" style="width:100%;margin-bottom:8px"/>
+        <button onclick="importKMZ()" style="width:100%;padding:10px;background:#2563EB;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:12px">上傳並加入地圖</button>
+        <div style="font-size:11px;color:#9CA3AF;margin-top:8px">支援 .kmz、.kmzfile 或 .kml 檔，會自動轉為 GeoJSON 並在地圖上顯示。</div>
+      </div>
+    
+    <div style="font-size:10px;color:#9CA3AF;margin-top:12px;padding-top:12px;border-top:1px solid #F3F4F6">
+    提示：帶 * 的欄位為必填項。座標可從 Google Maps 右鍵點擊「這是哪裡？」取得。
+    </div>
+  </div>
+</div>
+<div id="map"></div>
+</div>
+
+<script>
+// ================================================================
+// 所有函数定义必须在最前面，这样HTML的onclick才能正常工作
+// ================================================================
+
+// ================================================================
+// ROAD NETWORK — 台南市東區簡化街道圖
+// ================================================================
+const N = {
+  A1:{lat:22.9962,lng:120.2002,name:'勝利路×東門路一段'},
+  A2:{lat:22.9962,lng:120.2050,name:'林森路一段×東門路一段'},
+  A3:{lat:22.9962,lng:120.2098,name:'崇德路×東門路一段'},
+  A4:{lat:22.9962,lng:120.2145,name:'裕孝路×東門路一段'},
+  A5:{lat:22.9945,lng:120.2192,name:'東光路×東門路'},
+  A6:{lat:22.9915,lng:120.2192,name:'東門路二段×後甲一路'},
+  A7:{lat:22.9900,lng:120.2235,name:'平實路×後甲一路'},
+  B1:{lat:22.9990,lng:120.2038,name:'榮譽街×林森路一段'},
+  B2:{lat:22.9990,lng:120.2098,name:'崇德路×林森路一段'},
+  B3:{lat:22.9990,lng:120.2145,name:'東寧路×林森路二段'},
+  B4:{lat:22.9990,lng:120.2192,name:'崇明路×林森路二段'},
+  B5:{lat:22.9990,lng:120.2235,name:'後甲一路×裕文路'},
+  C1:{lat:23.0022,lng:120.2020,name:'前鋒路×衛國街'},
+  C2:{lat:23.0022,lng:120.2060,name:'東寧路×崇誨街'},
+  C3:{lat:23.0022,lng:120.2098,name:'崇德路×崇山路'},
+  C4:{lat:23.0022,lng:120.2145,name:'崇學路×東區區公所'},
+  C5:{lat:23.0022,lng:120.2192,name:'崇明路×崇學路'},
+  C6:{lat:23.0022,lng:120.2235,name:'裕文路×崇明路北'},
+  D1:{lat:23.0058,lng:120.2060,name:'文化路×東寧路'},
+  D2:{lat:23.0058,lng:120.2098,name:'崇德路×文化路'},
+  D3:{lat:23.0058,lng:120.2145,name:'崇善路×崇學路'},
+  D4:{lat:23.0058,lng:120.2192,name:'德東街×崇善路'},
+  D5:{lat:23.0058,lng:120.2235,name:'崇善路×裕文路東段'},
+};
+
+// [from, to, dist_m, {Rage, Rwidth, Rflood, Rexp}]
+// Rage   = 屋齡倒塌風險  0(新)→1(50年以上老屋)
+// Rwidth = 路幅阻塞風險  0(≥20m幹道)→1(≤4m無尾巷)
+// Rflood = 積水淹水風險  0(高地排水佳)→1(歷史積水熱區)
+// Rexp   = 戰時暴露風險  0(有建物掩蔽)→1(開放大道完全暴露)
+const E = [
+  // 東門路一段 (wide ~20m) — 西段較老，東段較新
+  ['A1','A2', 560,{Rage:.75,Rwidth:.15,Rflood:.42,Rexp:.85}],
+  ['A2','A3', 530,{Rage:.65,Rwidth:.15,Rflood:.38,Rexp:.85}],
+  ['A3','A4', 540,{Rage:.50,Rwidth:.15,Rflood:.32,Rexp:.85}],
+  ['A4','A5', 530,{Rage:.32,Rwidth:.18,Rflood:.28,Rexp:.82}],
+  ['A5','A6', 320,{Rage:.28,Rwidth:.20,Rflood:.68,Rexp:.80}],
+  ['A6','A7', 490,{Rage:.22,Rwidth:.22,Rflood:.82,Rexp:.78}],
+
+  // 林森路一段/二段 (wide ~22m)
+  ['B1','B2', 640,{Rage:.60,Rwidth:.18,Rflood:.32,Rexp:.82}],
+  ['B2','B3', 540,{Rage:.42,Rwidth:.18,Rflood:.28,Rexp:.82}],
+  ['B3','B4', 510,{Rage:.30,Rwidth:.20,Rflood:.35,Rexp:.80}],
+  ['B4','B5', 490,{Rage:.22,Rwidth:.22,Rflood:.60,Rexp:.78}],
+
+  // 崇德路 N-S 幹道 (~20m) — 沿線建物相對新
+  ['A3','B2', 330,{Rage:.28,Rwidth:.15,Rflood:.22,Rexp:.85}],
+  ['B2','C3', 330,{Rage:.22,Rwidth:.15,Rflood:.18,Rexp:.85}],
+  ['C3','D2', 360,{Rage:.18,Rwidth:.15,Rflood:.15,Rexp:.85}],
+
+  // 東寧路 N-S (~15m)
+  ['B3','C2', 330,{Rage:.38,Rwidth:.28,Rflood:.22,Rexp:.72}],
+  ['C2','D1', 360,{Rage:.32,Rwidth:.28,Rflood:.18,Rexp:.72}],
+
+  // 崇學路/裕孝路 N-S wid (~20m) — 較新建物
+  ['A4','B3', 330,{Rage:.25,Rwidth:.15,Rflood:.22,Rexp:.85}],
+  ['B3','C4', 330,{Rage:.20,Rwidth:.15,Rflood:.18,Rexp:.85}],
+  ['C4','D3', 360,{Rage:.18,Rwidth:.15,Rflood:.15,Rexp:.85}],
+
+  // 東光路/崇明路 N-S medium
+  ['A5','B4', 510,{Rage:.28,Rwidth:.22,Rflood:.52,Rexp:.78}],
+  ['B4','C5', 330,{Rage:.26,Rwidth:.22,Rflood:.40,Rexp:.78}],
+  ['C5','D4', 360,{Rage:.22,Rwidth:.22,Rflood:.26,Rexp:.78}],
+
+  // 後甲/裕文路東段 — 積水高風險區
+  ['B5','C6', 330,{Rage:.20,Rwidth:.28,Rflood:.72,Rexp:.72}],
+  ['C6','D5', 360,{Rage:.18,Rwidth:.28,Rflood:.65,Rexp:.72}],
+  ['A6','B5', 870,{Rage:.24,Rwidth:.22,Rflood:.85,Rexp:.78}],
+  ['A7','B5', 490,{Rage:.20,Rwidth:.22,Rflood:.88,Rexp:.78}],
+
+  // 文化路/崇善路 E-W medium (~15m) — 高地低淹水
+  ['D1','D2', 420,{Rage:.33,Rwidth:.25,Rflood:.18,Rexp:.75}],
+  ['D2','D3', 490,{Rage:.28,Rwidth:.25,Rflood:.18,Rexp:.75}],
+  ['D3','D4', 510,{Rage:.22,Rwidth:.25,Rflood:.20,Rexp:.75}],
+  ['D4','D5', 490,{Rage:.18,Rwidth:.25,Rflood:.22,Rexp:.75}],
+
+  // 崇學路 level E-W
+  ['C1','C2', 420,{Rage:.55,Rwidth:.30,Rflood:.28,Rexp:.70}],
+  ['C2','C3', 410,{Rage:.48,Rwidth:.25,Rflood:.22,Rexp:.75}],
+  ['C3','C4', 510,{Rage:.38,Rwidth:.18,Rflood:.22,Rexp:.82}],
+  ['C4','C5', 510,{Rage:.28,Rwidth:.18,Rflood:.28,Rexp:.82}],
+  ['C5','C6', 490,{Rage:.22,Rwidth:.22,Rflood:.55,Rexp:.78}],
+
+  // 前鋒路/榮譽街/衛國街 — 老舊狹巷，高倒塌，有建物遮蔽(戰時)
+  ['A1','B1', 450,{Rage:.90,Rwidth:.72,Rflood:.42,Rexp:.45}],
+  ['A2','B1', 420,{Rage:.85,Rwidth:.65,Rflood:.40,Rexp:.50}],
+  ['B1','C1', 450,{Rage:.80,Rwidth:.68,Rflood:.35,Rexp:.48}],
+  ['C1','D1', 440,{Rage:.62,Rwidth:.52,Rflood:.22,Rexp:.55}],
+
+  // 後街/巷弄 shortcuts — 舊建物、窄路、但戰時有掩蔽
+  ['A2','C2', 770,{Rage:.78,Rwidth:.70,Rflood:.38,Rexp:.22}],  // 關鍵：戰時低暴露後巷
+  ['A3','C2', 740,{Rage:.72,Rwidth:.62,Rflood:.30,Rexp:.30}],
+  ['B1','B3',1150,{Rage:.70,Rwidth:.55,Rflood:.34,Rexp:.40}],
+  ['C2','C4', 960,{Rage:.55,Rwidth:.48,Rflood:.24,Rexp:.52}],
+  ['A2','C1', 760,{Rage:.88,Rwidth:.82,Rflood:.44,Rexp:.20}],
+];
+
+// Build undirected adjacency list
+const G = {};
+Object.keys(N).forEach(id=>{G[id]=[];});
+E.forEach(([a,b,d,r])=>{
+  G[a].push({to:b,dist:d,risk:r});
+  G[b].push({to:a,dist:d,risk:r});
+});
+
+// ================================================================
+// DIJKSTRA
+// ================================================================
+function dijkstra(src,dst,costFn){
+  const D={}, P={};
+  Object.keys(N).forEach(id=>{D[id]=Infinity;});
+  D[src]=0;
+  const pq=[[0,src]];
+  while(pq.length){
+    pq.sort((a,b)=>a[0]-b[0]);
+    const [c,u]=pq.shift();
+    if(c>D[u])continue;
+    if(u===dst)break;
+    G[u].forEach(e=>{
+      const nc=D[u]+costFn(e.dist,e.risk);
+      if(nc<D[e.to]){D[e.to]=nc;P[e.to]=u;pq.push([nc,e.to]);}
+    });
+  }
+  if(!isFinite(D[dst]))return null;
+  const path=[];let cur=dst;
+  while(cur!==undefined){path.unshift(cur);cur=P[cur];}
+  return{path,cost:D[dst]};
+}
+function snap(lat,lng){
+  let best=null,bd=Infinity;
+  Object.entries(N).forEach(([id,n])=>{
+    const d=(n.lat-lat)**2+(n.lng-lng)**2;
+    if(d<bd){bd=d;best=id;}
+  });return best;
+}
+function realDist(path){
+  let d=0;
+  for(let i=0;i<path.length-1;i++){
+    const u=path[i],v=path[i+1];
+    const e=E.find(x=>(x[0]===u&&x[1]===v)||(x[0]===v&&x[1]===u));
+    if(e)d+=e[2];
+  }return d;
+}
+function maxRisk(path,k){
+  let mx=0;
+  for(let i=0;i<path.length-1;i++){
+    const u=path[i],v=path[i+1];
+    const e=E.find(x=>(x[0]===u&&x[1]===v)||(x[0]===v&&x[1]===u));
+    if(e)mx=Math.max(mx,e[3][k]);
+  }return mx;
+}
+
+// ================================================================
+// SHELTER DATA
+// type: shelter=官方避難收容所, relief=救濟站學校, civil=防空疏散避難設施
+// ================================================================
+const SHELTERS=[
+  // 16 official evacuation centers
+  {id:'S01',type:'shelter',name:'德光里活動中心',addr:'崇德路111號',lat:23.0050,lng:120.2098,
+   indoor:300,outdoor:1100,disasters:['earthquake','flood'],note:'第2指揮中心',
+   serves:'德光、大福、大德、忠孝里'},
+  {id:'S02',type:'shelter',name:'龍山社區活動中心',addr:'林森路一段311號',lat:22.9990,lng:120.2038,
+   indoor:700,outdoor:50,disasters:['earthquake','flood'],
+   serves:'龍山、路東、大同、泉南里'},
+  {id:'S03',type:'shelter',name:'關聖社區活動中心',addr:'裕孝路118號',lat:22.9962,lng:120.2148,
+   indoor:1000,outdoor:0,disasters:['earthquake','flood'],
+   serves:'關聖、東聖、後甲、南聖里'},
+  {id:'S04',type:'shelter',name:'復興國小風雨球場',addr:'裕文路60號',lat:22.9988,lng:120.2230,
+   indoor:0,outdoor:1000,disasters:['earthquake'],
+   serves:'復興、文聖、自強、虎尾里'},
+  {id:'S05',type:'shelter',name:'裕文國小',addr:'裕文路301號',lat:23.0022,lng:120.2238,
+   indoor:700,outdoor:0,disasters:['flood'],
+   serves:'文聖、裕聖里'},
+  {id:'S06',type:'shelter',name:'東寧運動公園',addr:'東寧路×林森路二段路口',lat:23.0018,lng:120.2060,
+   indoor:0,outdoor:7700,disasters:['earthquake'],
+   serves:'東明、東光、大學、中西里'},
+  {id:'S07',type:'shelter',name:'崇學國小操場',addr:'崇學路98號',lat:23.0020,lng:120.2145,
+   indoor:0,outdoor:1000,disasters:['earthquake'],
+   serves:'崇信、崇學、崇明、崇德里'},
+  {id:'S08',type:'shelter',name:'東區區公所',addr:'崇學路100號',lat:23.0024,lng:120.2148,
+   indoor:50,outdoor:20,disasters:['earthquake','flood'],note:'第1指揮中心',
+   serves:'崇信、崇學里'},
+  {id:'S09',type:'shelter',name:'衛國里活動中心',addr:'衛國街114巷28號',lat:23.0022,lng:120.2020,
+   indoor:200,outdoor:200,disasters:['earthquake','flood'],
+   serves:'衛國、崇誨、新東、東安里'},
+  {id:'S10',type:'shelter',name:'富裕里活動中心',addr:'東門路二段365巷35號',lat:22.9915,lng:120.2192,
+   indoor:200,outdoor:200,disasters:['earthquake','flood'],
+   serves:'富裕、裕農里'},
+  {id:'S11',type:'shelter',name:'大學東寧社區聯合活動中心',addr:'林森路二段252號',lat:23.0022,lng:120.2062,
+   indoor:900,outdoor:0,disasters:['earthquake','flood'],
+   serves:'大學、東明、成大、崇誨、圍下里'},
+  {id:'S12',type:'shelter',name:'和平里活動中心',addr:'文化路100號',lat:23.0058,lng:120.2098,
+   indoor:150,outdoor:1300,disasters:['earthquake','flood'],
+   serves:'和平、仁和、崇善、崇成里'},
+  {id:'S13',type:'shelter',name:'大智里活動中心',addr:'德東街90號',lat:23.0058,lng:120.2192,
+   indoor:300,outdoor:350,disasters:['earthquake','flood'],
+   serves:'大智、東智、德高、崇文、崇明、崇成里'},
+  {id:'S14',type:'shelter',name:'勝利國小（禮堂）',addr:'勝利路10號',lat:22.9962,lng:120.2000,
+   indoor:100,outdoor:0,disasters:['earthquake','flood'],
+   serves:'中西里'},
+  {id:'S15',type:'shelter',name:'東光社區活動中心',addr:'東光路一段39號之1',lat:22.9960,lng:120.2192,
+   indoor:350,outdoor:0,disasters:['earthquake','flood'],
+   serves:'東光、裕農、富強、後甲、南聖、小東里'},
+  {id:'S16',type:'shelter',name:'平實公園',addr:'平實路×後甲一路路口',lat:22.9900,lng:120.2230,
+   indoor:0,outdoor:15000,disasters:['earthquake'],
+   serves:'後甲、莊敬、東光、裕農、東聖、南聖里'},
+  // 防空疏散避難設施 (戰時)
+  {id:'W01',type:'civil',name:'崇德大廈（崇明居）',addr:'崇明路187巷1號',lat:23.0058,lng:120.2200,
+   indoor:3767,outdoor:0,disasters:['war'],note:'RC大樓，防空效果佳',
+   serves:'德光里'},
+  {id:'W02',type:'civil',name:'崇學苑大樓',addr:'崇學路101號',lat:23.0028,lng:120.2148,
+   indoor:3215,outdoor:0,disasters:['war'],note:'高樓RC結構',
+   serves:'德光里'},
+  {id:'W03',type:'civil',name:'崇德大廈',addr:'崇德路138號',lat:23.0040,lng:120.2098,
+   indoor:2302,outdoor:0,disasters:['war'],note:'RC大樓',
+   serves:'德光里'},
+  {id:'W04',type:'civil',name:'世界巨星大樓',addr:'平實路76號',lat:22.9902,lng:120.2232,
+   indoor:2312,outdoor:0,disasters:['war'],note:'大型RC建築',
+   serves:'後甲里'},
+  {id:'W05',type:'civil',name:'慈幼高工',addr:'裕農路801號',lat:22.9950,lng:120.2240,
+   indoor:1510,outdoor:0,disasters:['war'],note:'學校建築',
+   serves:'後甲里'},
+  {id:'W06',type:'civil',name:'台南監理站',addr:'崇德路1號',lat:23.0005,lng:120.2098,
+   indoor:1009,outdoor:0,disasters:['war'],note:'公務機關建築',
+   serves:'德光里'},
+  {id:'W07',type:'civil',name:'德光中學若瑟館',addr:'德光街106號',lat:23.0048,lng:120.2138,
+   indoor:1492,outdoor:0,disasters:['war'],note:'校舍建築',
+   serves:'德光里'},
+  // 救濟站 (schools)
+  {id:'R01',type:'relief',name:'忠孝國民中學',addr:'崇善路151號',lat:23.0058,lng:120.2145,indoor:0,outdoor:0,disasters:['earthquake','flood']},
+  {id:'R02',type:'relief',name:'東光國民小學',addr:'東光路一段39號',lat:22.9960,lng:120.2192,indoor:0,outdoor:0,disasters:['earthquake','flood']},
+  {id:'R03',type:'relief',name:'後甲國民中學',addr:'林森路二段260號',lat:22.9992,lng:120.2062,indoor:0,outdoor:0,disasters:['earthquake','flood']},
+  {id:'R04',type:'relief',name:'崇明國民小學',addr:'崇明路698號',lat:23.0022,lng:120.2238,indoor:0,outdoor:0,disasters:['earthquake','flood']},
+  {id:'R05',type:'relief',name:'崇學國民小學',addr:'崇學路98號',lat:23.0020,lng:120.2145,indoor:0,outdoor:0,disasters:['earthquake','flood']},
+  {id:'R06',type:'relief',name:'博愛國民小學',addr:'前鋒路100號',lat:23.0022,lng:120.2015,indoor:0,outdoor:0,disasters:['earthquake','flood']},
+  {id:'R07',type:'relief',name:'復興國民小學',addr:'裕文路60號',lat:22.9988,lng:120.2230,indoor:0,outdoor:0,disasters:['earthquake','flood']},
+  {id:'R08',type:'relief',name:'復興國民中學',addr:'裕文路62號',lat:22.9985,lng:120.2232,indoor:0,outdoor:0,disasters:['earthquake','flood']},
+  {id:'R09',type:'relief',name:'德高國民小學',addr:'崇善路1155號',lat:23.0058,lng:120.2238,indoor:0,outdoor:0,disasters:['earthquake','flood']},
+  {id:'R10',type:'relief',name:'勝利國民小學',addr:'勝利路10號',lat:22.9962,lng:120.2000,indoor:0,outdoor:0,disasters:['earthquake','flood']},
+  {id:'R11',type:'relief',name:'大同國民小學',addr:'榮譽街30號',lat:22.9990,lng:120.2038,indoor:0,outdoor:0,disasters:['earthquake','flood']},
+  {id:'R12',type:'relief',name:'崇明國民中學',addr:'崇明路700號',lat:23.0023,lng:120.2240,indoor:0,outdoor:0,disasters:['earthquake','flood']},
+  {id:'R13',type:'relief',name:'裕文國民小學',addr:'裕文路301號',lat:23.0022,lng:120.2238,indoor:0,outdoor:0,disasters:['earthquake','flood']},
+];
+
+// ================================================================
+// MODE CONFIG
+// ================================================================
+const DEMOS={
+  earthquake:{orig:'A1',dest:'S12'},
+  flood:{orig:'B5',dest:'S12'},
+  war:{orig:'A2',dest:'W02'},
+};
+const MODES={
+  earthquake:{
+    label:'地震',color:'#D97706',
+    desc:'疏散中後期適用。優先避開老舊建物密集街區與狹小巷弄，建築物倒塌及瓦礫堵塞為主要威脅。演算法懲罰高屋齡路段，引導至路幅寬敞、建物較新之幹道。',
+    sliders:[
+      {k:'wAge', label:'屋齡倒塌風險權重', v:1.0},
+      {k:'wW',   label:'路幅阻塞風險權重', v:0.8},
+      {k:'wF',   label:'積水風險權重',     v:0.1},
+    ],
+    cost:(d,r,w)=>d*(1+w.wAge*r.Rage+w.wW*r.Rwidth+w.wF*r.Rflood),
+    warn(path){
+      const a=maxRisk(path,'Rage'),w=maxRisk(path,'Rwidth');
+      if(a>.75)return{t:'warn',msg:`警告：路線包含屋齡風險值 ${(a*100).toFixed(0)}% 之高潛勢倒塌紅區路段`};
+      if(w>.55)return{t:'warn',msg:`注意：路線含路幅風險值 ${(w*100).toFixed(0)}% 之狹巷，瓦礫堵塞機率偏高`};
+      return{t:'ok',msg:'路線已避開高倒塌風險街區，建物較新且路幅寬敞'};
+    },
+    safeTag:'tag-safe',safeLabel:'地震安全路線',
+  },
+  flood:{
+    label:'水災',color:'#2563EB',
+    desc:'疏散中後期適用。優先避開低窪積水地區，特別是後甲一路、東門路二段等歷史淹水路段。演算法懲罰積水風險高之路段，引導至地勢較高或排水良好之通道。',
+    sliders:[
+      {k:'wF',   label:'積水淹水風險權重', v:1.2},
+      {k:'wW',   label:'路幅阻塞風險權重', v:0.3},
+      {k:'wAge', label:'屋齡倒塌風險權重', v:0.1},
+    ],
+    cost:(d,r,w)=>d*(1+w.wF*r.Rflood+w.wW*r.Rwidth+w.wAge*r.Rage),
+    warn(path){
+      const f=maxRisk(path,'Rflood');
+      if(f>.70)return{t:'warn',msg:`警告：路線含積水風險 ${(f*100).toFixed(0)}% 之低窪路段，大雨期間可能無法通行`};
+      if(f>.40)return{t:'warn',msg:`注意：路線含中度積水風險路段（${(f*100).toFixed(0)}%），請留意水位動態`};
+      return{t:'flood',msg:'路線已繞開主要積水風險區，地勢相對較高'};
+    },
+    safeTag:'tag-flood',safeLabel:'水災安全路線',
+  },
+  war:{
+    label:'戰爭',color:'#374151',
+    desc:'疏散中後期適用。戰爭情境下，開闊大道易暴露於攻擊。演算法改為懲罰開放幹道，引導至有建物遮蔽之側巷（注意：此類巷弄地震時危險，戰時反而安全）。目標為有頂蓋或地下層之防空疏散設施。',
+    sliders:[
+      {k:'wExp', label:'戰時暴露風險權重', v:1.0},
+      {k:'wAge', label:'倒塌風險權重',     v:0.3},
+      {k:'wW',   label:'通行阻塞權重',     v:0.2},
+    ],
+    cost:(d,r,w)=>d*(1+w.wExp*r.Rexp+w.wAge*r.Rage+w.wW*r.Rwidth),
+    warn(path){
+      const e=maxRisk(path,'Rexp');
+      if(e>.80)return{t:'warn',msg:`警告：路線行經暴露值 ${(e*100).toFixed(0)}% 之開闊幹道，戰時被偵測風險高`};
+      if(e>.60)return{t:'warn',msg:`注意：路線含部分暴露路段（${(e*100).toFixed(0)}%），建議快速通過`};
+      return{t:'gray',msg:'路線選擇有建物掩護之側巷，暴露風險已降低'};
+    },
+    safeTag:'tag-war',safeLabel:'戰時隱蔽路線',
+  },
+};
+
+// ================================================================
+// STATE
+// ================================================================
+let mode='earthquake', origNode=null, destShelter=null, picking=false;
+let W={wAge:1.0,wW:0.8,wF:0.1,wExp:1.0};
+let lyrStd=null,lyrSafe=null,mrkOrig=null;
+let kmzLayer=null; // GeoJSON layer created from KMZ/KML imports
+let gpsEnabled=false, gpsWatchId=null;
+
+// ================================================================
+// LEAFLET MAP
+// ================================================================
+let map = null;
+
+// 只有当 Leaflet 库加载完成时才初始化地图
+function initMap() {
+  if (typeof L === 'undefined') {
+    console.error('Leaflet 库未加载');
+    const mapDiv = document.getElementById('map');
+    if (mapDiv) {
+      mapDiv.innerHTML = '<div style="padding: 20px; color: red; font-weight: bold;">錯誤：地圖庫未加載，請檢查網路連接</div>';
+    }
+    return false;
+  }
+  
+  try {
+    map = L.map('map', {center: [23.0000, 120.2120], zoom: 15});
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 19
+    }).addTo(map);
+    
+    // 初始化应用
+    initializeApp();
+    return true;
+  } catch(err) {
+    console.error('地圖初始化失敗:', err);
+    document.getElementById('map').innerHTML = '<div style="padding: 20px; color: red;">地圖初始化失敗: ' + err.message + '</div>';
+    return false;
+  }
+}
+
+function initializeApp() {
+  if (!map) return;
+  
+  // 添加收容所标记
+  SHELTERS.forEach(s=>{
+    const ic=mkIcon(s.type);
+    const totalCap=(s.indoor||0)+(s.outdoor||0);
+    const disLabel={earthquake:'地震',flood:'水災',war:'戰爭'};
+    const disStr=s.disasters.map(d=>disLabel[d]||d).join('、');
+    const typeStr=s.type==='shelter'?'官方避難收容所':s.type==='civil'?'防空疏散避難設施':'救濟站學校';
+    
+    let popupContent=`
+      <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#1A1A2E">${s.name}</div>
+      <div style="font-size:11px;color:#6B7280;margin-bottom:4px"><strong>地址：</strong>${s.addr}</div>
+      <div style="font-size:11px;color:#6B7280;margin-bottom:4px"><strong>設施類型：</strong>${typeStr}</div>
+      <div style="font-size:11px;color:#6B7280;margin-bottom:4px"><strong>適合災難類型：</strong>${disStr}</div>
+      ${totalCap?`<div style="font-size:11px;color:#6B7280;margin-bottom:4px"><strong>收容人數：</strong>${totalCap}人`:''}
+      ${s.indoor?`<div style="font-size:11px;color:#6B7280;margin-bottom:2px">　 ├ 室內收容：${s.indoor}人</div>`:''}
+      ${s.outdoor?`<div style="font-size:11px;color:#6B7280;margin-bottom:4px">　 └ 室外容量：${s.outdoor}人</div>`:''}
+      ${s.note?`<div style="font-size:11px;color:#6B7280;margin-bottom:4px"><strong>建築物資訊：</strong>${s.note}</div>`:''}
+      ${s.serves?`<div style="font-size:11px;color:#6B7280"><strong>服務里別：</strong>${s.serves}</div>`:''}
+    `;
+    
+    L.marker([s.lat,s.lng],{icon:ic}).addTo(map)
+     .bindPopup(popupContent,{maxWidth:280,maxHeight:400})
+     .bindTooltip(`<b>${s.name}</b>`,{direction:'top',offset:[0,-8],opacity:.95});
+  });
+  
+  // 设置地图点击事件
+  map.on('click',e=>{
+    if(!picking)return;
+    picking=false;
+    map.getContainer().style.cursor='';
+    document.getElementById('origLabel').classList.remove('picking');
+    origNode=snap(e.latlng.lat,e.latlng.lng);
+    const nd=N[origNode];
+    document.getElementById('origLabel').textContent=nd.name;
+    if(mrkOrig)mrkOrig.remove();
+    mrkOrig=L.circleMarker([nd.lat,nd.lng],{radius:8,fillColor:'#1A1A2E',color:'#fff',weight:2,fillOpacity:1})
+      .addTo(map).bindTooltip('出發地：'+nd.name,{direction:'top'});
+    checkReady();
+  });
+}
+
+// GPS 定位功能
+let userLocationMarker=null;
+function toggleGPS(){
+  const btn=document.getElementById('gpsBtn');
+  if(gpsEnabled){
+    // 關閉GPS
+    gpsEnabled=false;
+    if(gpsWatchId!==null){
+      navigator.geolocation.clearWatch(gpsWatchId);
+      gpsWatchId=null;
+    }
+    if(userLocationMarker){
+      userLocationMarker.remove();
+      userLocationMarker=null;
+    }
+    btn.textContent='🟢 啟動 GPS 定位';
+    btn.style.background='#F9FAFB';
+  } else {
+    // 啟動GPS
+    gpsEnabled=true;
+    btn.textContent='🔴 關閉 GPS 定位';
+    btn.style.background='#FEE2E2';
+    getUserLocation();
+  }
+}
+
+function getUserLocation(){
+  if(navigator.geolocation && gpsEnabled){
+    gpsWatchId=navigator.geolocation.watchPosition(
+      position=>{
+        const lat=position.coords.latitude;
+        const lng=position.coords.longitude;
+        const accuracy=position.coords.accuracy;
+        
+        // 移除舊的用戶位置標記
+        if(userLocationMarker){
+          userLocationMarker.remove();
+        }
+        
+        // 添加用戶位置標記（藍色圓點）
+        userLocationMarker=L.circleMarker([lat,lng],{
+          radius:8,
+          fillColor:'#3B82F6',
+          color:'#fff',
+          weight:2,
+          fillOpacity:1
+        }).addTo(map);
+        
+        // 添加精度圓圈
+        L.circle([lat,lng],{
+          radius:accuracy,
+          color:'#3B82F6',
+          fillColor:'#93C5FD',
+          fillOpacity:0.2,
+          weight:1,
+          dashArray:'5,5'
+        }).addTo(map);
+        
+        // 添加工具提示
+        userLocationMarker.bindTooltip(`您的位置<br>精度: ±${Math.round(accuracy)}m`,
+          {direction:'top',offset:[0,-10],opacity:0.95});
+      },
+      error=>{
+        console.log('GPS定位失敗:',error.message);
+        alert('GPS定位失敗，請檢查瀏覽器權限設定。');
+      },
+      {
+        enableHighAccuracy:true,
+        timeout:10000,
+        maximumAge:0
+      }
+    );
+  }
+}
+
+// Draw road network — 取消屋齡熱點線段顯示
+E.forEach(([a,b,,r])=>{
+  // 屋齡熱點線段已取消顯示
+});
+
+// Shelter markers with custom SVG icons (0.7x scale)
+const ICON_SCALE=0.7;
+const ICON_BASE=32;
+const ICON_SZ=Math.round(ICON_BASE*ICON_SCALE);
+const ICON_ANCHOR=Math.round(ICON_SZ/2);
+const ICON_ANCHOR_B=ICON_SZ;
+
+function mkIcon(type){
+  let svgHtml='';
+
+  if(type==='shelter'){
+    svgHtml=`<svg width="${ICON_SZ}" height="${ICON_SZ}" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" opacity="0.7">
+      <polygon points="16,4 4,14 4,28 28,28 28,14" fill="#DC2626"/>
+      <rect x="8" y="16" width="4" height="4" fill="#FFF"/>
+      <rect x="20" y="16" width="4" height="4" fill="#FFF"/>
+      <rect x="12" y="22" width="8" height="6" fill="#FFF"/>
+      <circle cx="16" cy="7" r="2" fill="#FFF"/>
+      <path d="M16,9 L14,13 L16,14 L18,13 Z" fill="#FFF"/>
+      <line x1="14" y1="13" x2="12" y2="18" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="18" y1="13" x2="19" y2="18" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>`;
+  } else if(type==='civil'){
+    svgHtml=`<svg width="${ICON_SZ}" height="${ICON_SZ}" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" opacity="0.7">
+      <ellipse cx="16" cy="16" rx="12" ry="10" fill="#475569"/>
+      <circle cx="12" cy="16" r="3" fill="#FFF" opacity="0.6"/>
+      <circle cx="20" cy="16" r="3" fill="#FFF" opacity="0.6"/>
+      <path d="M 10 24 Q 16 28 22 24" stroke="#475569" stroke-width="2" fill="none"/>
+    </svg>`;
+  } else {
+    svgHtml=`<svg width="${ICON_SZ}" height="${ICON_SZ}" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" opacity="0.7">
+      <circle cx="16" cy="16" r="14" fill="#2563EB"/>
+      <rect x="14" y="8" width="4" height="16" fill="#FFF"/>
+      <rect x="8" y="14" width="16" height="4" fill="#FFF"/>
+    </svg>`;
+  }
+
+  return L.divIcon({
+    className:'',
+    html:svgHtml,
+    iconSize:[ICON_SZ,ICON_SZ],
+    iconAnchor:[ICON_ANCHOR,ICON_ANCHOR_B],
+    popupAnchor:[0,-ICON_SZ]
+  });
+}
+
+// ================================================================
+// UI FUNCTIONS
+// ================================================================
+function openImportPanel(){
+  document.getElementById('importModal').style.display='flex';
+  document.getElementById('impName').focus();
+}
+
+function closeImportModal(){
+  document.getElementById('importModal').style.display='none';
+  // 清空表單
+  document.getElementById('impName').value='';
+  document.getElementById('impAddr').value='';
+  document.getElementById('impLat').value='';
+  document.getElementById('impLng').value='';
+  document.getElementById('impIndoor').value='';
+  document.getElementById('impOutdoor').value='';
+  document.getElementById('impType').value='shelter';
+  document.getElementById('impNote').value='';
+}
+
+function submitImport(){
+  const data={
+    name:document.getElementById('impName').value.trim(),
+    addr:document.getElementById('impAddr').value.trim(),
+    lat:parseFloat(document.getElementById('impLat').value),
+    lng:parseFloat(document.getElementById('impLng').value),
+    indoor:parseInt(document.getElementById('impIndoor').value)||0,
+    outdoor:parseInt(document.getElementById('impOutdoor').value)||0,
+    type:document.getElementById('impType').value,
+    note:document.getElementById('impNote').value.trim()
+  };
+  
+  if(!data.name||data.name===''){
+    alert('請輸入設施名稱');
+    return;
+  }
+  if(!data.lat||!data.lng||data.lat===0||data.lng===0){
+    alert('請輸入正確的座標（緯度和經度）');
+    return;
+  }
+  
+  addNewShelter(data);
+  closeImportModal();
+}
+
+function addNewShelter(data){
+  const newShelter={
+    id:'NEW_'+(Date.now()),
+    type:data.type||'shelter',
+    name:data.name||'未命名',
+    addr:data.addr||'',
+    lat:parseFloat(data.lat)||0,
+    lng:parseFloat(data.lng)||0,
+    indoor:parseInt(data.indoor)||0,
+    outdoor:parseInt(data.outdoor)||0,
+    disasters:data.disasters||['earthquake','flood'],
+    note:data.note||'',
+    serves:data.serves||''
+  };
+  
+  if(newShelter.lat===0||newShelter.lng===0){
+    alert('座標不正確');
+    return;
+  }
+  
+  // 添加到SHELTERS陣列
+  SHELTERS.push(newShelter);
+  
+  // 添加標記到地圖
+  const ic=mkIcon(newShelter.type);
+  const totalCap=(newShelter.indoor||0)+(newShelter.outdoor||0);
+  const disLabel={earthquake:'地震',flood:'水災',war:'戰爭'};
+  const disStr=newShelter.disasters.map(d=>disLabel[d]||d).join('、');
+  const typeStr=newShelter.type==='shelter'?'官方避難收容所':newShelter.type==='civil'?'防空疏散避難設施':'救濟站學校';
+  
+  let popupContent=`
+    <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#1A1A2E">${newShelter.name}</div>
+    <div style="font-size:11px;color:#6B7280;margin-bottom:4px"><strong>地址：</strong>${newShelter.addr}</div>
+    <div style="font-size:11px;color:#6B7280;margin-bottom:4px"><strong>設施類型：</strong>${typeStr}</div>
+    <div style="font-size:11px;color:#6B7280;margin-bottom:4px"><strong>適合災難類型：</strong>${disStr}</div>
+    ${totalCap?`<div style="font-size:11px;color:#6B7280;margin-bottom:4px"><strong>收容人數：</strong>${totalCap}人`:''}
+    ${newShelter.indoor?`<div style="font-size:11px;color:#6B7280;margin-bottom:2px">　 ├ 室內收容：${newShelter.indoor}人</div>`:''}
+    ${newShelter.outdoor?`<div style="font-size:11px;color:#6B7280;margin-bottom:4px">　 └ 室外容量：${newShelter.outdoor}人</div>`:''}
+    ${newShelter.note?`<div style="font-size:11px;color:#6B7280;margin-bottom:4px"><strong>建築物資訊：</strong>${newShelter.note}</div>`:''}
+    ${newShelter.serves?`<div style="font-size:11px;color:#6B7280"><strong>服務里別：</strong>${newShelter.serves}</div>`:''}
+  `;
+  
+  L.marker([newShelter.lat,newShelter.lng],{icon:ic}).addTo(map)
+   .bindPopup(popupContent,{maxWidth:280,maxHeight:400})
+   .bindTooltip(`<b>${newShelter.name}</b>`,{direction:'top',offset:[0,-8],opacity:0.95});
+  
+  // 更新下拉選單
+  rebuildDest();
+  alert('已添加新收容所：'+newShelter.name);
+}
+
+function setMode(m){
+  mode=m;
+  document.querySelectorAll('.tab').forEach(t=>{
+    t.className='tab';
+    if(t.dataset.mode===m) t.classList.add(m==='earthquake'?'eq':m==='flood'?'fl':'wa');
+  });
+  document.getElementById('mdesc').textContent=MODES[m].desc;
+  W={wAge:1.0,wW:0.8,wF:0.1,wExp:1.0};
+  MODES[m].sliders.forEach(s=>{W[s.k]=s.v;});
+  renderSliders();
+  rebuildDest();
+  clearRoutes();
+}
+
+function renderSliders(){
+  const c=document.getElementById('sliders');
+  c.innerHTML='';
+  MODES[mode].sliders.forEach(s=>{
+    W[s.k]=s.v;
+    const d=document.createElement('div');d.className='sl-row';
+    d.innerHTML=`<div class="sl-hd"><span class="sl-n">${s.label}</span><span class="sl-v" id="sv_${s.k}">${s.v.toFixed(2)}</span></div>
+    <input type="range" min="0" max="2" step="0.05" value="${s.v}"
+      oninput="W['${s.k}']=parseFloat(this.value);document.getElementById('sv_${s.k}').textContent=parseFloat(this.value).toFixed(2)">`;
+    c.appendChild(d);
+  });
+}
+
+function rebuildDest(){
+  const sel=document.getElementById('destSel');
+  sel.innerHTML='<option value="">-- 選擇目標避難設施 --</option>';
+  const groups={
+    shelter:{label:mode==='war'?'官方避難收容所（戰時為次要選項）':'官方避難收容所（16所）',items:[]},
+    civil:{label:'防空疏散避難設施（戰時優先，7所）',items:[]},
+    relief:{label:'救濟站學校（13所）',items:[]},
+  };
+  SHELTERS.forEach(s=>{
+    if(mode==='war'&&s.type!=='civil'&&s.type!=='shelter')return;
+    groups[s.type]?.items.push(s);
+  });
+  const order=mode==='war'?['civil','shelter']:['shelter','relief'];
+  order.forEach(k=>{
+    const g=groups[k];
+    if(!g||!g.items.length)return;
+    const og=document.createElement('optgroup');og.label=g.label;
+    g.items.forEach(s=>{
+      const cap=(s.indoor||0)+(s.outdoor||0);
+      const o=document.createElement('option');
+      o.value=s.id;
+      o.textContent=`${s.name}（${s.addr}${cap?'，'+cap+'人':''}）`;
+      og.appendChild(o);
+    });
+    sel.appendChild(og);
+  });
+}
+
+function startPick(){
+  picking=true;
+  document.getElementById('origLabel').textContent='正在選取... 請點擊地圖';
+  document.getElementById('origLabel').classList.add('picking');
+  map.getContainer().style.cursor='crosshair';
+}
+
+function onDest(){
+  const id=document.getElementById('destSel').value;
+  destShelter=id?SHELTERS.find(s=>s.id===id):null;
+  clearRoutes();
+  checkReady();
+  if(destShelter)map.setView([destShelter.lat,destShelter.lng],15,{animate:true});
+}
+
+function loadDemo(){
+  const d=DEMOS[mode];
+  origNode=d.orig;
+  document.getElementById('origLabel').textContent=N[origNode].name;
+  if(mrkOrig)mrkOrig.remove();
+  const nd=N[origNode];
+  mrkOrig=L.circleMarker([nd.lat,nd.lng],{radius:8,fillColor:'#1A1A2E',color:'#fff',weight:2,fillOpacity:1})
+    .addTo(map).bindTooltip('出發地：'+nd.name,{direction:'top'});
+  document.getElementById('destSel').value=d.dest;
+  destShelter=SHELTERS.find(s=>s.id===d.dest);
+  checkReady();
+  if(origNode&&destShelter){
+    run();
+  }
+}
+
+function checkReady(){
+  document.getElementById('runBtn').disabled=!(origNode&&destShelter);
+}
+
+function clearRoutes(){
+  if(lyrStd){lyrStd.remove();lyrStd=null;}
+  if(lyrSafe){lyrSafe.remove();lyrSafe=null;}
+  document.getElementById('resSection').style.display='none';
+}
+
+// ================================================================
+// MAIN ANALYSIS
+// ================================================================
+function run(){
+  if(!origNode||!destShelter)return;
+  clearRoutes();
+  const dstNode=snap(destShelter.lat,destShelter.lng);
+  const cfg=MODES[mode];
+
+  const rStd=dijkstra(origNode,dstNode,d=>d);
+  const rSafe=dijkstra(origNode,dstNode,(d,r)=>cfg.cost(d,r,W));
+  if(!rStd||!rSafe){
+    document.getElementById('resSection').style.display='block';
+    document.getElementById('resCards').innerHTML='<div style="font-size:12px;color:#9CA3AF;padding:10px">無法計算路線，起點與終點連通性不足。</div>';
+    return;
+  }
+
+  const dStd=realDist(rStd.path), dSafe=realDist(rSafe.path);
+  const tStd=Math.round(dStd/80), tSafe=Math.round(dSafe/80);
+  const wStd=cfg.warn(rStd.path), wSafe=cfg.warn(rSafe.path);
+  const same=rStd.path.join()===rSafe.path.join();
+
+  // Draw routes
+  const cStd=rStd.path.map(id=>[N[id].lat,N[id].lng]);
+  const cSafe=rSafe.path.map(id=>[N[id].lat,N[id].lng]);
+  lyrStd=L.polyline(cStd,{color:'#FB923C',weight:3,dashArray:'12 8',opacity:.85}).addTo(map);
+  lyrSafe=L.polyline(cSafe,{color:'#DC2626',weight:5,dashArray:'',opacity:.92}).addTo(map);
+  map.fitBounds(L.latLngBounds([...cStd,...cSafe]).pad(.18));
+
+  const noteClass={warn:'nwarn',ok:'nok',flood:'nflood',gray:'ngray'};
+
+  document.getElementById('resCards').innerHTML=`
+    ${same?`<div class="nsame">本模式下兩條路線相同：此起終點的最短距離路線恰為最低風險路線。可調高權重滑桿或更換起終點以顯示差異。</div>`:''}
+    <div class="rcard">
+      <div class="rcd-hd">
+        <div class="rline-std"></div>
+        <div class="rtitle">最短距離路線</div>
+        <div class="rtag tag-ref">距離優先</div>
+      </div>
+      <div class="rstats">
+        <div class="rs">距離 <b>${dStd}m</b></div>
+        <div class="rs">預計 <b>${tStd} 分鐘</b></div>
+        <div class="rs">段數 <b>${rStd.path.length-1}</b></div>
+      </div>
+      <div class="rnote ${noteClass[wStd.t]||'nwarn'}">${wStd.msg}</div>
+    </div>
+    <div class="rcard">
+      <div class="rcd-hd">
+        <div class="rline-safe" style="background:${cfg.color}"></div>
+        <div class="rtitle">${cfg.safeLabel}</div>
+        <div class="rtag ${cfg.safeTag}">推薦</div>
+      </div>
+      <div class="rstats">
+        <div class="rs">距離 <b>${dSafe}m</b></div>
+        <div class="rs">預計 <b>${tSafe} 分鐘</b></div>
+        <div class="rs">段數 <b>${rSafe.path.length-1}</b></div>
+      </div>
+      <div class="rnote ${noteClass[wSafe.t]||'nok'}">${wSafe.msg}</div>
+    </div>
+    <div class="cost-row">
+      演算綜合成本 &mdash; 距離優先路線：${rStd.cost.toFixed(0)}&ensp;安全路線：${rSafe.cost.toFixed(0)}<br>
+      目的地：${destShelter.name}${(destShelter.indoor||destShelter.outdoor)?'（總收容量 '+((destShelter.indoor||0)+(destShelter.outdoor||0))+' 人）':''}
+    </div>`;
+  document.getElementById('resSection').style.display='block';
+}
+
+// ================================================================
+// KMZ / KML IMPORT HANDLER
+// ================================================================
+
+async function importKMZ(){
+  const inp=document.getElementById('kmzInput');
+  if(!inp.files||!inp.files.length){alert('請選擇一個 KMZ 或 KML 檔案');return;}
+  const file=inp.files[0];
+  const name=file.name.toLowerCase();
+  try{
+    console.log('開始匯入檔案:', file.name);
+    const ab=await readFileAsArrayBuffer(file);
+    const arr=new Uint8Array(ab);
+    const isZip = arr[0]===0x50 && arr[1]===0x4B;
+    const contentText = decodeTextWithBOM(ab);
+    const isKml = /<\?xml|<kml|<Placemark/i.test(contentText);
+
+    console.log('檔案類型檢測 - isZip:', isZip, 'isKml:', isKml);
+    if(!isZip && !isKml){
+      console.log('前 200 字元:', contentText.substring(0, 200));
+    }
+
+    const stripNamespaces = (xmlText) => {
+      xmlText = xmlText.replace(/\s+xmlns(:\w+)?\s*=\s*"[^"]*"/g, '');
+      xmlText = xmlText.replace(/<(\/?)\w+:/g, '<$1');
+      return xmlText;
+    };
+
+    const parseKmlDocument = (xmlText) => {
+      const stripped = stripNamespaces(xmlText);
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(stripped, 'application/xml');
+      if(doc.querySelector('parsererror')){
+        const doc2 = parser.parseFromString(xmlText, 'application/xml');
+        if(!doc2.querySelector('parsererror')) return doc2;
+        console.error('KML 解析錯誤:', doc.querySelector('parsererror').textContent);
+        throw new Error('KML 解析失敗，可能為損壞或非標準 KML。');
+      }
+      return doc;
+    };
+
+    const convertAndLog = (kmlDoc) => {
+      let geojson = toGeoJSON.kml(kmlDoc);
+      if(!geojson.features || geojson.features.length === 0){
+        geojson = manualKmlExtract(kmlDoc);
+      }
+      console.log('轉換結果 - features 數量:', geojson.features ? geojson.features.length : 0);
+      return geojson;
+    };
+
+    const manualKmlExtract = (doc) => {
+      const features = [];
+      const placemarks = doc.getElementsByTagName('Placemark');
+      for(let i = 0; i < placemarks.length; i++){
+        const pm = placemarks[i];
+        const nameEl = pm.getElementsByTagName('name')[0];
+        const descEl = pm.getElementsByTagName('description')[0];
+        const props = {
+          name: nameEl ? nameEl.textContent.trim() : '',
+          description: descEl ? descEl.textContent.trim() : ''
+        };
+        const point = pm.getElementsByTagName('Point')[0];
+        if(point){
+          const coords = point.getElementsByTagName('coordinates')[0];
+          if(coords){
+            const parts = coords.textContent.trim().split(',').map(Number);
+            if(parts.length >= 2){
+              features.push({type:'Feature',properties:props,geometry:{type:'Point',coordinates:[parts[0],parts[1]]}});
+            }
+          }
+          continue;
+        }
+        const line = pm.getElementsByTagName('LineString')[0];
+        if(line){
+          const coords = line.getElementsByTagName('coordinates')[0];
+          if(coords){
+            const arr = coords.textContent.trim().split(/\s+/).map(s=>{const p=s.split(',').map(Number);return[p[0],p[1]];}).filter(p=>!isNaN(p[0])&&!isNaN(p[1]));
+            if(arr.length>=2) features.push({type:'Feature',properties:props,geometry:{type:'LineString',coordinates:arr}});
+          }
+          continue;
+        }
+        const poly = pm.getElementsByTagName('Polygon')[0];
+        if(poly){
+          const outer = poly.getElementsByTagName('outerBoundaryIs')[0];
+          const ring = outer ? outer.getElementsByTagName('coordinates')[0] : poly.getElementsByTagName('coordinates')[0];
+          if(ring){
+            const arr = ring.textContent.trim().split(/\s+/).map(s=>{const p=s.split(',').map(Number);return[p[0],p[1]];}).filter(p=>!isNaN(p[0])&&!isNaN(p[1]));
+            if(arr.length>=3) features.push({type:'Feature',properties:props,geometry:{type:'Polygon',coordinates:[arr]}});
+          }
+          continue;
+        }
+        const multi = pm.getElementsByTagName('MultiGeometry')[0];
+        if(multi){
+          const subPoints = multi.getElementsByTagName('Point');
+          const subLines = multi.getElementsByTagName('LineString');
+          const subPolys = multi.getElementsByTagName('Polygon');
+          const geoms = [];
+          for(let j=0;j<subPoints.length;j++){
+            const c=subPoints[j].getElementsByTagName('coordinates')[0];
+            if(c){const p=c.textContent.trim().split(',').map(Number);if(p.length>=2)geoms.push({type:'Point',coordinates:[p[0],p[1]]});}
+          }
+          for(let j=0;j<subLines.length;j++){
+            const c=subLines[j].getElementsByTagName('coordinates')[0];
+            if(c){const a=c.textContent.trim().split(/\s+/).map(s=>{const p=s.split(',').map(Number);return[p[0],p[1]];}).filter(p=>!isNaN(p[0]));if(a.length>=2)geoms.push({type:'LineString',coordinates:a});}
+          }
+          for(let j=0;j<subPolys.length;j++){
+            const ob=subPolys[j].getElementsByTagName('outerBoundaryIs')[0];
+            const c=ob?ob.getElementsByTagName('coordinates')[0]:subPolys[j].getElementsByTagName('coordinates')[0];
+            if(c){const a=c.textContent.trim().split(/\s+/).map(s=>{const p=s.split(',').map(Number);return[p[0],p[1]];}).filter(p=>!isNaN(p[0]));if(a.length>=3)geoms.push({type:'Polygon',coordinates:[a]});}
+          }
+          if(geoms.length===1) features.push({type:'Feature',properties:props,geometry:geoms[0]});
+          else if(geoms.length>1) features.push({type:'Feature',properties:props,geometry:{type:'GeometryCollection',geometries:geoms}});
+        }
+      }
+      return {type:'FeatureCollection',features};
+    };
+
+    if(isZip){
+      console.log('檢測為 ZIP 檔案，嘗試解壓...');
+      const zip=await JSZip.loadAsync(ab);
+      let kmlEntry=null;
+      const fileList = [];
+      zip.forEach((rel,entry)=>{ 
+        fileList.push(rel);
+        if(!kmlEntry && rel.toLowerCase().endsWith('.kml')) kmlEntry=entry; 
+      });
+      console.log('ZIP 內的檔案:', fileList);
+      
+      if(!kmlEntry){
+        alert('KMZ 檔案內找不到 KML。檔案列表: '+fileList.join(', '));
+        return;
+      }
+      const kmlText=await kmlEntry.async('text');
+      console.log('KML 文本長度:', kmlText.length, '前 300 字元:', kmlText.substring(0, 300));
+      const kmlDoc=parseKmlDocument(kmlText);
+      const geojson=convertAndLog(kmlDoc);
+      console.log('轉換的 GeoJSON:', geojson);
+      addGeoJSONToMap(geojson,file.name);
+    } else if(isKml){
+      console.log('檢測為 KML 檔案');
+      const kmlDoc=parseKmlDocument(contentText);
+      const geojson=convertAndLog(kmlDoc);
+      console.log('轉換的 GeoJSON:', geojson);
+      addGeoJSONToMap(geojson,file.name);
+    } else {
+      // Fallback: if file extension suggests KMZ 或 KMZFILE, still try zip parsing.
+      const nameLower=file.name.toLowerCase();
+      if(nameLower.endsWith('.kmz') || nameLower.endsWith('.kmzfile')){
+        console.log('副檔名提示為 KMZ，嘗試強制 ZIP 解壓...');
+        try{
+          const zip=await JSZip.loadAsync(ab);
+          let kmlEntry=null;
+          zip.forEach((rel,entry)=>{ if(!kmlEntry && rel.toLowerCase().endsWith('.kml')) kmlEntry=entry; });
+          if(kmlEntry){
+            const kmlText=await kmlEntry.async('text');
+            const kmlDoc=parseKmlDocument(kmlText);
+            const geojson=convertAndLog(kmlDoc);
+            console.log('轉換的 GeoJSON:', geojson);
+            addGeoJSONToMap(geojson,file.name);
+            return;
+          }
+        }catch(e){
+          console.warn('KMZ 嘗試解壓失敗：', e);
+        }
+      }
+      alert('無法辨識檔案格式。請確認選取的是有效的 KMZ/KML 檔，或改名為 .kmz 再嘗試。');
+    }
+  }catch(err){
+    console.error('匯入失敗',err);
+    alert('匯入失敗：'+(err.message||'請檢查檔案格式與內容。開發者工具 Console 中有詳細錯誤資訊。'));
+  }
+}
+
+function readFileAsArrayBuffer(file){
+  return new Promise((res,rej)=>{
+    const fr=new FileReader();
+    fr.onload=(e)=>res(e.target.result);
+    fr.onerror=(e)=>rej(e);
+    fr.readAsArrayBuffer(file);
+  });
+}
+function readFileAsText(file){
+  return new Promise((res,rej)=>{
+    const fr=new FileReader();
+    fr.onload=(e)=>res(e.target.result);
+    fr.onerror=(e)=>rej(e);
+    fr.readAsText(file);
+  });
+}
+
+function decodeTextWithBOM(ab){
+  const decoder = new TextDecoder('utf-8', {fatal:false});
+  const text = decoder.decode(ab);
+  return text.replace(/^\uFEFF/, '');
+}
+
+function addGeoJSONToMap(geojson, label){
+  // remove previous import layer
+  if(kmzLayer){kmzLayer.remove();kmzLayer=null;}
+  
+  // Debug: check GeoJSON structure
+  console.log('匯入的 GeoJSON:', geojson);
+  if(!geojson || !geojson.features || geojson.features.length === 0){
+    alert('警告：GeoJSON 為空，沒有可顯示的要素。請確認 KMZ/KML 檔案內容。');
+    return;
+  }
+  
+  kmzLayer=L.geoJSON(geojson,{
+    style:function(f){
+      return {
+        color:'#2b8cbe',
+        weight:3,
+        opacity:0.9,
+        fillOpacity:0.5
+      };
+    },
+    pointToLayer:function(feature,latlng){
+      return L.marker(latlng,{icon:mkIcon('shelter')});
+    },
+    onEachFeature:function(feature,layer){
+      let info='<div style="font-size:12px">';
+      if(feature.properties){
+        const p=feature.properties;
+        if(p.name)info+='<div style="font-weight:700;margin-bottom:4px">'+p.name+'</div>';
+        if(p.description)info+='<div style="color:#666;margin-bottom:4px">'+p.description+'</div>';
+        // Show all properties
+        for(let k in p){
+          if(k !== 'name' && k !== 'description' && p[k]){
+            info+='<div style="font-size:11px;color:#888"><b>'+k+':</b> '+p[k]+'</div>';
+          }
+        }
+      }
+      info+='</div>';
+      layer.bindPopup(info,{maxWidth:320});
+      // 在 hover 時顯示
+      layer.on('mouseover', function() { this.openPopup(); });
+      layer.on('mouseout', function() { this.closePopup(); });
+    }
+  }).addTo(map);
+  
+  console.log('圖層已添加，要素數量:', geojson.features.length);
+  
+  // 調整地圖視野
+  try{
+    const bounds = kmzLayer.getBounds();
+    console.log('圖層邊界:', bounds);
+    if(bounds && bounds.isValid()){
+      map.fitBounds(bounds.pad(0.12));
+    } else {
+      throw new Error('邊界無效');
+    }
+  }catch(e){
+    console.warn('無法計算邊界，嘗試使用第一個要素：', e);
+    if(geojson.features && geojson.features.length > 0){
+      const firstFeature = geojson.features[0];
+      if(firstFeature.geometry){
+        let center;
+        if(firstFeature.geometry.type === 'Point'){
+          center = [firstFeature.geometry.coordinates[1], firstFeature.geometry.coordinates[0]];
+        } else if(firstFeature.geometry.coordinates && firstFeature.geometry.coordinates.length > 0){
+          const coords = firstFeature.geometry.coordinates;
+          center = [coords[0][1], coords[0][0]];
+        }
+        if(center){
+          map.setView(center, 13);
+          console.log('已設定地圖中心:', center);
+        }
+      }
+    }
+  }
+  alert('已將 '+(label||'檔案')+' 匯入並顯示於地圖（共 '+geojson.features.length+' 個要素）。請打開瀏覽器開發者工具（F12）查看 Console 以了解詳細資訊。');
+}
+setMode('earthquake');
+
+// ================================================================
+// INITIALIZATION - 在 Leaflet 库加载后初始化地图
+// ================================================================
+// 等待 Leaflet 库加载
+if (typeof L !== 'undefined') {
+  // Leaflet 已加载，直接初始化
+  initMap();
+} else {
+  // 等待 Leaflet 加载，最多尝试 20 次（2秒）
+  let attempts = 0;
+  const checkLeaflet = setInterval(function() {
+    attempts++;
+    if (typeof L !== 'undefined') {
+      clearInterval(checkLeaflet);
+      initMap();
+    } else if (attempts > 20) {
+      clearInterval(checkLeaflet);
+      document.getElementById('map').innerHTML = '<div style="padding: 20px; color: red; font-weight: bold;">錯誤：地圖庫加載失敗，請檢查網路連接並刷新頁面</div>';
+      console.error('Leaflet 库加载超时');
+    }
+  }, 100);
+}
+</script>
+</body>
+</html>
