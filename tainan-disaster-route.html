@@ -70,16 +70,28 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 .leg{display:flex;flex-direction:column;gap:7px}
 .li{display:flex;align-items:center;gap:7px;font-size:11px;color:#6B7280}
 .ldot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
-#map{flex:1;background:#07111f}
-#map .leaflet-tile-pane{filter:saturate(.85) contrast(1.08) brightness(.92)}
-#map .leaflet-control-zoom a{background:#101b2e;border-color:#24344f;color:#E5EEF9}
-#map .leaflet-control-zoom a:hover{background:#172740;color:#fff}
-#map .leaflet-control-attribution{background:rgba(7,17,31,.82);color:#9FB2CA}
-#map .leaflet-control-attribution a{color:#7DD3FC}
+#map{flex:1;background:#2a2c31;position:relative}
+#map::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:400;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:44px 44px;mix-blend-mode:overlay}
+#map::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:401;background:radial-gradient(120% 90% at 50% 45%,transparent 55%,rgba(20,21,24,.55) 100%)}
+#map .leaflet-tile{filter:grayscale(1) brightness(1.06) contrast(1.04)}
+#map .leaflet-control-zoom a{background:rgba(24,26,30,.92);border-color:rgba(255,255,255,.12);color:#F1F2F4}
+#map .leaflet-control-zoom a:hover{background:rgba(40,43,49,.96);color:#fff}
+#map .leaflet-control-attribution{background:rgba(20,21,24,.6)!important;color:rgba(255,255,255,.4)!important;font-size:9px!important}
+#map .leaflet-control-attribution a{color:rgba(255,255,255,.55)!important}
 #map .leaflet-popup-content-wrapper,
-#map .leaflet-popup-tip{background:#111827;color:#DCE7F3;box-shadow:0 12px 28px rgba(0,0,0,.45)}
-#map .leaflet-popup-content div{color:#DCE7F3!important}
-#map .leaflet-tooltip{background:#101b2e;border:1px solid #2A3B58;color:#E5EEF9;box-shadow:0 8px 20px rgba(0,0,0,.35)}
+#map .leaflet-popup-tip{background:rgba(24,26,30,.95)!important;color:#F1F2F4!important;border:1px solid rgba(255,255,255,.12)!important;box-shadow:0 10px 30px rgba(0,0,0,.5)!important}
+#map .leaflet-popup-content-wrapper{border-radius:16px!important}
+#map .leaflet-popup-content{margin:12px 14px!important}
+#map .leaflet-popup-content div{color:#F1F2F4!important}
+#map .leaflet-popup-close-button{color:rgba(255,255,255,.5)!important}
+#map .leaflet-container a.leaflet-popup-close-button:hover{color:#fff!important}
+#map .leaflet-tooltip{background:rgba(24,26,30,.92)!important;border:1px solid rgba(255,255,255,.12)!important;color:#F1F2F4!important;border-radius:10px!important;box-shadow:0 6px 20px rgba(0,0,0,.4)!important}
+#map .leaflet-tooltip-right::before{border-right-color:rgba(255,255,255,.12)!important}
+#map .leaflet-tooltip-left::before{border-left-color:rgba(255,255,255,.12)!important}
+@keyframes marker-ping{75%,100%{transform:scale(2.2);opacity:0}}
+@keyframes halo-pulse{0%,100%{opacity:.55}50%{opacity:.9}}
+.marker-ping{animation:marker-ping 1.6s cubic-bezier(0,0,0.2,1) infinite}
+.marker-halo{animation:halo-pulse 3s ease-in-out infinite}
 .cost-row{font-size:10px;color:#9CA3AF;margin-top:5px;line-height:1.6}
 </style>
 </head>
@@ -551,7 +563,7 @@ const MODES={
 // ================================================================
 let mode='earthquake', origNode=null, destShelter=null, picking=false;
 let W={wAge:1.0,wW:0.8,wF:0.1,wExp:1.0};
-let lyrStd=null,lyrSafe=null,mrkOrig=null;
+let lyrStd=null,lyrSafe=null,lyrStdGlow=null,lyrSafeGlow=null,mrkOrig=null;
 let kmzLayer=null; // GeoJSON layer created from KMZ/KML imports
 let gpsEnabled=false, gpsWatchId=null;
 
@@ -945,6 +957,8 @@ function checkReady(){
 }
 
 function clearRoutes(){
+  if(lyrStdGlow){lyrStdGlow.remove();lyrStdGlow=null;}
+  if(lyrSafeGlow){lyrSafeGlow.remove();lyrSafeGlow=null;}
   if(lyrStd){lyrStd.remove();lyrStd=null;}
   if(lyrSafe){lyrSafe.remove();lyrSafe=null;}
   document.getElementById('resSection').style.display='none';
@@ -975,8 +989,10 @@ function run(){
   // Draw routes
   const cStd=rStd.path.map(id=>[N[id].lat,N[id].lng]);
   const cSafe=rSafe.path.map(id=>[N[id].lat,N[id].lng]);
-  lyrStd=L.polyline(cStd,{color:'#FFE45E',weight:4,dashArray:'12 8',opacity:1}).addTo(map);
-  lyrSafe=L.polyline(cSafe,{color:'#FF6B7A',weight:6,dashArray:'',opacity:1}).addTo(map);
+  lyrStdGlow=L.polyline(cStd,{color:'#111317',weight:9,dashArray:'12 8',opacity:.5,lineCap:'round',lineJoin:'round'}).addTo(map);
+  lyrSafeGlow=L.polyline(cSafe,{color:'#111317',weight:11,opacity:.55,lineCap:'round',lineJoin:'round'}).addTo(map);
+  lyrStd=L.polyline(cStd,{color:'#FFFFFF',weight:4,dashArray:'10 10',opacity:.95,lineCap:'round',lineJoin:'round'}).addTo(map);
+  lyrSafe=L.polyline(cSafe,{color:'#67E8F9',weight:6,dashArray:'',opacity:1,lineCap:'round',lineJoin:'round'}).addTo(map);
   map.fitBounds(L.latLngBounds([...cStd,...cSafe]).pad(.18));
 
   const noteClass={warn:'nwarn',ok:'nok',flood:'nflood',gray:'ngray'};
